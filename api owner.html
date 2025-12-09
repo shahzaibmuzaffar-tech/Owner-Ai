@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA AI — Codic Edition</title>
+<style>
+  :root{
+    --bg:#0d0d0f;--fg:#eef2ff;--muted:#9aa3b2;--accent:#6366f1;--card:#111216;--input:#16161a;--border:#222327;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background:var(--bg);
+    color:var(--fg);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow:auto;
+  }
+
+  /* Layout */
+  .wrap{max-width:980px;margin:8px auto;padding-bottom:110px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 8px;background:var(--card);border-radius:8px}
+  header h1{font-size:20px;margin:0}
+  .controls{display:flex;gap:8px;align-items:center}
+
+  select, input[type="text"], textarea {
+    background:var(--input);border:1px solid var(--border);color:var(--fg);padding:8px;border-radius:8px;
+  }
+  button{background:var(--accent);border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+  button.secondary{background:#2b2b33}
+
+  /* Chat box */
+  #chat-container{margin-top:10px;padding:14px;border-radius:8px;background:linear-gradient(180deg,#0f0f12,#0c0c0e);min-height:60vh;border:1px solid var(--border);overflow:auto}
+  .msg{max-width:80%;padding:12px;border-radius:10px;margin-bottom:12px;line-height:1.35;border:1px solid rgba(255,255,255,0.02);}
+  .msg.user{margin-left:auto;background:#131318}
+  .msg.bot{margin-right:auto;background:#0f1724}
+
+  /* fixed input */
+  #input-area{position:fixed;left:0;right:0;bottom:0;padding:10px;background:linear-gradient(180deg,rgba(10,10,12,0.95),rgba(10,10,12,1));border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+  #input-area .inner{max-width:980px;margin:0 auto;display:flex;width:100%;gap:8px}
+  #userInput{flex:1;padding:12px;border-radius:10px}
+  #sendBtn{min-width:84px}
+
+  /* settings pane */
+  .panel{margin-top:12px;background:var(--card);padding:12px;border-radius:8px;border:1px solid var(--border)}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  label{color:var(--muted);font-size:13px;min-width:120px}
+  small{color:var(--muted);font-size:12px}
+
+  /* about */
+  .about{margin-top:12px;padding:12px;border-radius:8px;background:#0b0b0d;border:1px solid var(--border)}
+  .contacts{margin-top:8px}
+  a.contact{color:var(--accent);text-decoration:none;margin-right:12px}
+
+  @media(max-width:640px){
+    .wrap{padding:0 8px 120px}
+    header{padding:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header>
+      <h1>NOVA AI</h1>
+      <div class="controls">
+        <select id="modelSelect" title="Choose model">
+          <option value="deepseek_r1">DeepSeek R1</option>
+          <option value="openai">OpenAI (compatible)</option>
+          <option value="custom">Custom (endpoint)</option>
+        </select>
+        <button id="openSettings">Settings</button>
+      </div>
+    </header>
+
+    <div id="chat-container" aria-live="polite"></div>
+
+    <div class="panel" id="settingsPanel" style="display:none">
+      <h3>Settings &amp; API Keys</h3>
+
+      <div class="row">
+        <label>DeepSeek R1 (encoded)</label>
+        <input id="deepseekR1Input" type="text" placeholder="Encoded R1 key or leave encoded placeholder" style="flex:1">
+        <button id="saveR1">Save</button>
+      </div>
+      <div class="row">
+        <label>OpenAI / OpenRouter Key</label>
+        <input id="openaiKey" type="text" placeholder="sk- or sk-or-..." style="flex:1">
+        <button id="saveOpenAI">Save</button>
+      </div>
+
+      <div class="row">
+        <label>Custom endpoint</label>
+        <input id="customEndpoint" type="text" placeholder="https://your-proxy-or-provider/api/v1" style="flex:1">
+      </div>
+      <div class="row">
+        <label>Custom key</label>
+        <input id="customKey" type="text" placeholder="Bearer token or key" style="flex:1">
+        <button id="saveCustom">Save</button>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="clearChat" class="secondary">Clear Chat</button>
+        <button id="exportChat" class="secondary">Export Chat</button>
+        <button id="importTraining" class="secondary">Import Training</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+      <h4>Codic Tools</h4>
+      <small>Encode a raw key to codic (MINEWORLDS) for safe paste in code. Encoding is only obfuscation — not a secure secret store.</small>
+      <div class="row">
+        <label>Raw key</label>
+        <input id="encoderRaw" type="text" placeholder="sk-or-..." style="flex:1">
+        <button id="doEncode">Encode</button>
+      </div>
+      <div class="row">
+        <label>Encoded output</label>
+        <input id="encoderOut" type="text" style="flex:1" readonly>
+        <button id="copyEncoded">Copy</button>
+      </div>
+    </div>
+
+    <div class="about">
+      <h3>About NOVA</h3>
+      <p>This AI interface (NOVA) was created by <strong>Shahzaib Muzaffar</strong>, a trusted web developer focused on clean UX and practical AI tools. NOVA is built to be privacy-minded, lightweight, and extendable for experimentation and learning.</p>
+      <div class="contacts">
+        <a class="contact" href="https://t.me/Owner_Of_Crypton" target="_blank">Telegram: @Owner_Of_Crypton</a>
+        <a class="contact" href="https://instagram.com/shahzaib_muzaffar_7" target="_blank">Instagram: @shahzaib_muzaffar_7</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- fixed input area -->
+  <div id="input-area">
+    <div class="inner" style="width:100%;max-width:980px">
+      <input id="userInput" placeholder="Message NOVA…" autocomplete="off">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+<script>
+/* ------------------------------------------------------
+   CODIC SYSTEM (Encoder + Decoder)
+   - Keyword expected to be "MINEWORLDS"
+   - Decoding rules (per your spec):
+     * Letters decode via keyword mapping
+     * Output letters => lowercase
+     * Dashes (-) remain
+     * Numbers remain
+     * API part ends before the first space (the keyword follows)
+------------------------------------------------------*/
+
+// Build mapping helper given keyword (KW uppercased)
+function buildKeywordMap(keyword) {
+  const kw = (keyword||"MINEWORLDS").toUpperCase().split("");
+  const mapNumToLetter = {};
+  // keyword letters take 1..kw.length
+  for (let i=0;i<kw.length;i++) mapNumToLetter[i+1] = kw[i];
+  // remaining alphabet
+  const used = new Set(kw);
+  const remaining = [];
+  for (let c of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") if (!used.has(c)) remaining.push(c);
+  for (let i=0;i<remaining.length;i++) mapNumToLetter[i+11] = remaining[i];
+  return mapNumToLetter; // numeric -> letter
+}
+
+// Decode encoded string (encodedFull includes space + keyword)
+function decodeCodic(encodedFull) {
+  if (!encodedFull || typeof encodedFull !== 'string') return "";
+  const parts = encodedFull.trim().split(" ");
+  const enc = parts[0] || "";
+  const keyword = (parts[1] || "MINEWORLDS").toUpperCase();
+  const map = buildKeywordMap(keyword);
+
+  let out = "";
+  for (let ch of enc) {
+    if (ch.match(/[A-Z]/)) {
+      // A => 1 ...
+      const n = ch.charCodeAt(0) - 64;
+      const decoded = map[n] || "";
+      out += decoded.toLowerCase();
+    } else {
+      // numbers and dashes unchanged
+      out += ch;
+    }
+  }
+  return out;
+}
+
+// Encoder - converts a raw key (like sk-or-...) into codic format using keyword
+function encodeCodic(rawKey, keyword) {
+  keyword = (keyword||"MINEWORLDS").toUpperCase();
+  const mapNumToLetter = buildKeywordMap(keyword);
+  // Need reverse mapping letter -> number
+  const mapLetterToNum = {};
+  Object.keys(mapNumToLetter).forEach(k => {
+    mapLetterToNum[mapNumToLetter[k]] = parseInt(k,10);
+  });
+
+  // Convert each char: if letter a-z -> find its numeric in map and map to A=1..Z via numeric->letter mapping? 
+  // Your original system: letters are replaced by their numeric positions then turned into A=1,B=2... 
+  // We'll follow your decode inverse by converting each lowercase letter to its mapped number, then to an uppercase A..:
+  // But to keep it consistent with decoder, we'll implement encoder as the inverse: for each letter of rawKey:
+  //  - If letter is a-z, find the number in mapLetterToNum (matching uppercase) -> get numeric N
+  //  - Convert numeric N to an uppercase letter by A=1 -> 'A', B=2 -> 'B', etc. (so numeric 1->'A')
+  //  - If not found (e.g., dashes/numbers), preserve as-is.
+  // Finally append space + keyword.
+  let out = "";
+  for (let ch of rawKey) {
+    if (ch.match(/[A-Za-z]/)) {
+      const up = ch.toUpperCase();
+      // find numeric position in keyword-map reverse
+      let num = mapLetterToNum[up];
+      if (!num) {
+        // if not found (shouldn't happen), preserve letter
+        out += up;
+      } else {
+        // Map numeric to A..Z: 1->'A', 2->'B', ... 26->'Z' (if num>26, wrap? but num <=26)
+        const letter = String.fromCharCode(64 + num); // 1->A
+        out += letter;
+      }
+    } else {
+      out += ch;
+    }
+  }
+  return out + " " + keyword;
+}
+
+/* --------------------------
+   Default encoded R1 placeholder
+   you asked to use this exact encoded string:
+---------------------------*/
+const DEFAULT_ENCODED_R1 = "JR-FG-W1-0IN668I9K780797077M65DMI64DK32499561N96K44I2M52M89776DL4NM01MI2N MINEWORLDS";
+
+/* --------------------------
+   state & keys (persisted)
+---------------------------*/
+const state = {
+  providerId: localStorage.getItem("nova_provider") || "deepseek_r1",
+  keys: {
+    deepseek_r1: localStorage.getItem("key_deepseek_r1") || DEFAULT_ENCODED_R1,
+    openai: localStorage.getItem("key_openai") || "",
+    customEndpoint: localStorage.getItem("key_custom_endpoint") || "",
+    customKey: localStorage.getItem("key_custom_key") || ""
+  },
+  chatHistory: JSON.parse(localStorage.getItem("nova_chat")||"[]"),
+  training: localStorage.getItem("nova_training") || ""
+};
+
+/* ----------------------------------------------------
+   UI wiring
+----------------------------------------------------*/
+const el = id => document.getElementById(id);
+function initUI(){
+  // model select
+  const sel = el("modelSelect");
+  sel.value = state.providerId;
+  sel.addEventListener("change", e => {
+    state.providerId = e.target.value;
+    localStorage.setItem("nova_provider", state.providerId);
+  });
+
+  // settings
+  el("openSettings").addEventListener("click", () => {
+    const p = el("settingsPanel");
+    p.style.display = p.style.display === "none" ? "block" : "none";
+    // populate fields
+    el("deepseekR1Input").value = state.keys.deepseek_r1;
+    el("openaiKey").value = state.keys.openai;
+    el("customEndpoint").value = state.keys.customEndpoint;
+    el("customKey").value = state.keys.customKey;
+  });
+
+  // save R1
+  el("saveR1").addEventListener("click", ()=>{
+    const v = el("deepseekR1Input").value.trim();
+    if(v){ state.keys.deepseek_r1 = v; localStorage.setItem("key_deepseek_r1", v); alert("Saved"); } else alert("Enter encoded value or placeholder");
+  });
+
+  // save openai
+  el("saveOpenAI").addEventListener("click", ()=>{
+    const v = el("openaiKey").value.trim();
+    state.keys.openai = v; localStorage.setItem("key_openai", v);
+    alert("Saved OpenAI key (stored locally)");
+  });
+
+  el("saveCustom").addEventListener("click", ()=>{
+    state.keys.customEndpoint = el("customEndpoint").value.trim();
+    state.keys.customKey = el("customKey").value.trim();
+    localStorage.setItem("key_custom_endpoint", state.keys.customEndpoint);
+    localStorage.setItem("key_custom_key", state.keys.customKey);
+    alert("Saved custom endpoint & key");
+  });
+
+  el("clearChat").addEventListener("click", ()=>{
+    if(confirm("Clear chat history?")){ state.chatHistory=[]; localStorage.removeItem("nova_chat"); renderChat(); }
+  });
+
+  el("exportChat").addEventListener("click", ()=>{
+    const a=document.createElement("a");
+    const blob=new Blob([JSON.stringify(state.chatHistory,null,2)],{type:"application/json"});
+    a.href=URL.createObjectURL(blob); a.download="nova_chat.json"; a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // encoder tool
+  el("doEncode").addEventListener("click", ()=>{
+    const raw = el("encoderRaw").value.trim();
+    if(!raw){ alert("Enter a raw key to encode"); return; }
+    const encoded = encodeCodic(raw,"MINEWORLDS");
+    el("encoderOut").value = encoded;
+  });
+  el("copyEncoded").addEventListener("click", ()=>{
+    const v = el("encoderOut").value;
+    if(!v) return alert("Nothing to copy");
+    navigator.clipboard?.writeText(v).then(()=>alert("Copied"));
+  });
+
+  // send
+  el("sendBtn").addEventListener("click", handleSend);
+  el("userInput").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); handleSend(); } });
+
+  // restore chat
+  renderChat();
+}
+document.addEventListener("DOMContentLoaded", initUI);
+
+/* ----------------------------------------------------
+   Chat rendering & helpers
+----------------------------------------------------*/
+function renderChat(){
+  const container = el("chat-container");
+  container.innerHTML="";
+  for(const m of state.chatHistory){
+    addMessage(m.role==="assistant"?"bot":"user", m.content);
+  }
+  // scroll to bottom
+  container.scrollTop = container.scrollHeight;
+}
+
+function addMessage(cls, text){
+  const container = el("chat-container");
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.innerText = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ----------------------------------------------------
+   Send message flow
+----------------------------------------------------*/
+async function handleSend(){
+  const text = el("userInput").value.trim();
+  if(!text) return;
+  // push user msg
+  state.chatHistory.push({role:"user",content:text});
+  localStorage.setItem("nova_chat", JSON.stringify(state.chatHistory));
+  addMessage("user", text);
+  el("userInput").value = "";
+
+  // build messages (system training + history)
+  const messages = [];
+  if(state.training) messages.push({role:"system",content:state.training});
+  for(const m of state.chatHistory) if(m.role==="user"||m.role==="assistant") messages.push({role:m.role,content:m.content});
+
+  // call provider
+  try {
+    let reply = "";
+    if(state.providerId==="deepseek_r1") reply = await callDeepSeekR1(messages);
+    else if(state.providerId==="openai") reply = await callOpenAI(messages);
+    else if(state.providerId==="custom") reply = await callCustom(messages);
+    else reply = "No provider selected.";
+
+    state.chatHistory.push({role:"assistant",content:reply});
+    localStorage.setItem("nova_chat", JSON.stringify(state.chatHistory));
+    addMessage("bot", reply);
+  } catch(err){
+    console.error(err);
+    addMessage("bot", "⚠️ Error: " + (err.message||"unknown"));
+  }
+}
+
+/* ----------------------------------------------------
+   Provider implementations
+   - deepseek_r1: decode codic if encoded; else use raw
+   - openai: uses key stored in settings
+   - custom: uses custom endpoint & key
+----------------------------------------------------*/
+
+async function callDeepSeekR1(messages){
+  const encoded = state.keys.deepseek_r1 || DEFAULT_ENCODED_R1;
+  // if encoded contains space (keyword appended) -> decodeCodic; else if it starts with sk- or sk-or- use as-is
+  let key = "";
+  if(encoded.includes(" ")){
+    key = decodeCodic(encoded);
+  } else {
+    key = encoded; // assume user put raw key
+  }
+  if(!key) throw new Error("No DeepSeek R1 key available.");
+
+  // build payload (OpenRouter-style)
+  const body = { model: "amazon/nova-2-lite-v1:free", messages };
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=>"");
+    throw new Error("Provider error: "+res.status+" "+t);
+  }
+  const json = await res.json();
+  return json?.choices?.[0]?.message?.content ?? JSON.stringify(json);
+}
+
+async function callOpenAI(messages){
+  const key = state.keys.openai;
+  if(!key) return "OpenAI key not set in Settings.";
+  const body = { model: "gpt-4o", messages };
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+key}, body:JSON.stringify(body)
+  });
+  if(!res.ok){ const t=await res.text().catch(()=>""); throw new Error("OpenAI/OpenRouter error: "+res.status+" "+t); }
+  const json = await res.json();
+  return json?.choices?.[0]?.message?.content ?? JSON.stringify(json);
+}
+
+async function callCustom(messages){
+  const endpoint = state.keys.customEndpoint;
+  if(!endpoint) return "Custom endpoint not configured in Settings.";
+  const key = state.keys.customKey;
+  const headers = {"Content-Type":"application/json"};
+  if(key) headers["Authorization"] = key.startsWith("Bearer")?key:("Bearer "+key);
+  const res = await fetch(endpoint, {method:"POST",headers,body:JSON.stringify({model:"custom",messages})});
+  if(!res.ok){ const t=await res.text().catch(()=>""); throw new Error("Custom provider error: "+res.status+" "+t); }
+  const json = await res.json();
+  return json?.choices?.[0]?.message?.content ?? JSON.stringify(json);
+}
+
+/* ----------------------------------------------------
+   Auto-focus & safety for mobile UI
+----------------------------------------------------*/
+window.addEventListener("load",()=>{
+  el("userInput").focus();
+  // ensure encoded placeholder present if no custom key
+  if(!localStorage.getItem("key_deepseek_r1")) {
+    localStorage.setItem("key_deepseek_r1", DEFAULT_ENCODED_R1);
+    state.keys.deepseek_r1 = DEFAULT_ENCODED_R1;
+  }
+});
+
+/* ----------------------------------------------------
+   Expose functions for debugging on console (dev only)
+----------------------------------------------------*/
+window.Nova = { decodeCodic, encodeCodic, state };
+
+/* END OF SCRIPT */
+</script>
+
+</body></html>
